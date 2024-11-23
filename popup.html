@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        /* Set the background image for the popup and black border */
+        body {
+            width: 500px;
+            font-family: Arial, sans-serif;
+            background-image: url('images/background.png');
+            background-size: cover;
+            color: #6f9fc8; /* General text color */
+            padding-left: 10px;
+            padding-right: 10px;
+            border-radius: 8px;
+        }
+        .title {
+            color: #6f9fc8;
+            font-size: 18px;
+            background-image: url('images/title_background.png');
+            background-size: 100% 100%;
+            background-repeat: no-repeat;
+            padding: 10px;
+            text-align: center;
+        }
+        .title.smaller {
+            font-size: 16px;
+        }
+        .row-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+        .row-container.center {
+            display: flex;
+            justify-content: center; /* Center the delete button */
+            margin-bottom: 10px;
+        }
+        .input-group{
+            text-align: center;
+        }
+        .row-container:not(.center) .input-group input {
+            width: 100px;
+        }
+        /* Button styles with transparent background */
+        .button {
+            width: 100px;
+            height: 30px;
+            background-image: url('images/button_off.png');
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 100% 100%;
+            border: none;
+            cursor: pointer;
+            color: #767f88;
+            font-weight: bold;
+            text-align: center;
+            background-color: transparent;
+        }
+        .button:hover, .button:active {
+            background-image: url('images/button_on.png');
+            background-size: 100% 100%;
+            color: #ffffff;
+        }
+        .spacer {
+            height: 15px; /* Adjust height as needed */
+            width: 100%;  /* Ensure it spans the full width */
+        }
+        /* Darker custom scrollbar */
+        body::-webkit-scrollbar {
+            width: 12px;
+        }
+        body::-webkit-scrollbar-track {
+            background-color: #556e7d;
+        }
+        body::-webkit-scrollbar-thumb {
+            background-color: #283a4a;
+        }
+        body::-webkit-scrollbar-thumb:hover {
+            background-color: #3c5161;
+        }
+
+        tbody td {
+            height: 30px;
+        }
+
+        /* Table Header Styling */
+        thead {
+            background-color: #141e26; /* Header background color */
+            color: #6f9fc8; /* Text color */
+            position: sticky; /* Sticky header */
+            top: 0; /* Stick to the top of the scrollable area */
+            z-index: 1; /* Ensure it stays above the table body rows */
+        }
+
+        /* Alternating Row Colors */
+        tbody tr:nth-child(odd) {
+            background-color: #1f425f; /* Odd rows */
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #355173; /* Even rows */
+        }
+
+        /* General Table Styling */
+        th, td {
+            border: 1px solid #6f9fc8; /* Border color */
+            padding: 5px; /* Padding for content */
+            text-align: center; /* Center align text */
+        }
+
+        table {
+            width: 100%; /* Full width */
+            color: #6f9fc8; /* Text color */
+            border-collapse: collapse; /* Remove gaps between borders */
+            font-size: 12px; /* Font size for table content */
+            margin-bottom: 25px;
+        }
+
+        /* Fixed height for table body with scrollbar */
+        tbody {
+            display: block; /* Enable block layout for scrolling */
+            height: 400px; /* Adjust height as needed */
+            overflow-y: auto; /* Vertical scrollbar */
+            overflow-x: hidden; /* Disable horizontal scrollbar */
+        }
+
+        /* Ensure consistent column widths */
+        thead, tbody tr {
+            display: table;
+            width: 483px; /* Ensure rows match table width */
+            table-layout: fixed; /* Equal column widths */
+        }
+
+    </style>
+</head>
+<body>
+    <h3 class="title">OGame Scanner</h3>
+
+    <div class="row-container center">
+        <button id="clearAllData" class="button" style="width:170px">! Clear ALL Data !</button>
+    </div>
+
+    <!-- Input for Start System and Start Galaxy -->
+    <div class="row-container">
+        <div class="input-group">
+            <label for="startGalaxy">Start Galaxy:</label>
+            <input type="number" id="startGalaxy" value="1">
+        </div>
+        <div class="input-group">
+            <label for="startSystem">Start System:</label>
+            <input type="number" id="startSystem" value="1">
+        </div>
+    </div>
+
+    <!-- Input for Max System and Max Galaxy -->
+    <div class="row-container">
+        <div class="input-group">
+            <label for="maxGalaxy">Max Galaxy:</label>
+            <input type="number" id="maxGalaxy" value="5">
+        </div>
+        <div class="input-group">
+            <label for="maxSystem">Max System:</label>
+            <input type="number" id="maxSystem" value="499">
+        </div>
+    </div>
+
+    <!-- Input for Time Interval -->
+    <div class="row-container center">
+        <div class="input-group">
+            <label for="waitMS">Click Interval (ms):</label>
+            <input type="number" id="waitMS" value="1000">
+        </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <!-- Message for scan stopped -->
+    <div id="scanStoppedMessage" style="color: green; text-align: center; visibility: hidden;">
+        Scan stopped! Remember to save it before closing if you want to keep it.
+    </div>
+
+    <!-- Scan and Stop Buttons -->
+    <div class="row-container">
+        <button id="scanButton" class="button">Scan</button>
+        <button id="stopButton" class="button">Stop</button>
+        <button id="saveButton" class="button">Save Scan</button>
+    </div>
+
+    <!-- Export Import Button -->
+    <div class="row-container">
+        <button id="exportButton" class="button">Export</button>
+        <button id="importButton" class="button">Import</button>
+    </div>
+
+    <h3 class="title smaller">Scan Differences</h3>
+
+    <div id="scanDates" style="display: flex; gap: 10px; margin-bottom: 10px;">
+        <div><strong>Last Scan:</strong> <span id="lastScanDate">N/A</span></div>
+        <div><strong>Current Scan:</strong> <span id="currentScanDate">N/A</span></div>
+    </div>
+
+    <div id="filterCheckboxes" style="display: flex; margin-bottom: 10px; gap: 10px;">
+        <label><input type="checkbox" value="!! NEW PLANET !!"> New</label>
+        <label><input type="checkbox" value="destroyed planet"> Destroyed</label>
+        <label><input type="checkbox" value="alliance change"> Alliance</label>
+        <label><input type="checkbox" value="player name change"> Player name</label>
+        <label><input type="checkbox" value="planet name change"> Planet name</label>
+    </div>
+    <input type="text" id="searchInput" placeholder="Search..." style="width: 90%; margin-bottom: 10px;"/>
+    <table id="scanDifferencesTable">
+        <thead>
+            <tr>
+                <th>Coords</th>
+                <th>Planet</th>
+                <th>Player</th>
+                <th>Alliance</th>
+                <th>Alert</th>
+                <th>Oldest Scan</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script src="popup.js"></script>
+</body>
+</html>
