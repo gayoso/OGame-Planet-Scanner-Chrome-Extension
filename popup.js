@@ -176,7 +176,14 @@ function populateScanDifferences() {
                 if (playerData) {
                     const planet = playerData.planets.find((p) => p.coords === coords);
                     if (planet) {
-                        return { name: planet.name, playerName, alliance: playerData.alliance, datetime: planet.datetime };
+                        return {
+                            name: planet.name,
+                            playerName,
+                            inactive: playerData.inactive,
+                            vacations: playerData.vacations,
+                            alliance: playerData.alliance,
+                            datetime: planet.datetime
+                        };
                     }
                 }
             }
@@ -224,6 +231,8 @@ function populateScanDifferences() {
                 name: currentDetails ? currentDetails.name : previousDetails.name,
                 playerName: currentDetails ? currentDetails.playerName : previousDetails.playerName,
                 alliance: currentDetails ? currentDetails.alliance : previousDetails.alliance,
+                inactive: currentDetails && currentDetails.inactive ? currentDetails.inactive : false,
+                vacations: currentDetails && currentDetails.vacations ? currentDetails.vacations : false,
                 reason,
                 color,
                 previousDatetime,
@@ -243,6 +252,8 @@ function populateScanDifferences() {
         allRows.forEach((row) => {
             const tableRow = document.createElement("tr");
             tableRow.dataset.reason = row.reason; // For filtering
+            tableRow.dataset.inactive = row.inactive; // Add inactive status
+            tableRow.dataset.vacations = row.vacations; // Add vacations status
 
             tableRow.innerHTML = `
                 <td style="border: 1px solid #6f9fc8;">${row.coords}</td>
@@ -268,12 +279,20 @@ function applyFilters() {
 
     rows.forEach((row) => {
         const textContent = row.textContent.toLowerCase();
-        const reason = row.dataset.reason;
+        const reason = row.dataset.reason || ""; // Reason (e.g., "new planet", "destroyed planet")
+        const isInactive = row.dataset.inactive === "true"; // Inactive status
+        const isVacations = row.dataset.vacations === "true"; // Vacations status
 
         const matchesSearch = searchValue === "" || textContent.includes(searchValue);
-        const matchesReason =
-            selectedReasons.length === 0 || selectedReasons.includes(reason);
 
+        // Check for reason match
+        const matchesReason =
+            selectedReasons.length === 0 ||
+            selectedReasons.includes(reason) ||
+            (selectedReasons.includes("inactive") && isInactive) ||
+            (selectedReasons.includes("vacations") && isVacations);
+
+        // Show or hide the row based on the filter match
         row.style.display = matchesSearch && matchesReason ? "" : "none";
     });
 }
@@ -300,6 +319,110 @@ function clearAllData() {
     });
 }
 
+// -------------------------
+
+function saveReport() {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        chrome.tabs.sendMessage(tabs[0].id, { action: "saveReport" }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error("Error:", chrome.runtime.lastError.message);
+            } else {
+                console.log("Report saved:", response);
+                setTimeout(populateReportTable, 1000);
+            }
+        });
+    });
+}
+
+function showReport() {
+    const selectedRow = document.querySelector("#reportTable tbody tr.selected");
+    if (!selectedRow) {
+        return;
+    }
+
+    const reportId = selectedRow.dataset.reportId;
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        chrome.tabs.sendMessage(tabs[0].id, { action: "showReport", reportId }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error("Error:", chrome.runtime.lastError.message);
+            } else {
+                console.log("Report shown:", response);
+            }
+        });
+    });
+}
+
+function deleteReport() {
+    const selectedRow = document.querySelector("#reportTable tbody tr.selected");
+    if (!selectedRow) {
+        return;
+    }
+
+    const reportId = selectedRow.dataset.reportId;
+    chrome.storage.local.get(["savedReports"], (result) => {
+        const savedReports = result.savedReports || [];
+        const updatedReports = savedReports.filter((report) => report.id !== reportId);
+
+        chrome.storage.local.set({ savedReports: updatedReports }, () => {
+            console.log("Report deleted:", reportId);
+            setTimeout(populateReportTable, 1000);
+        });
+    });
+}
+
+function populateReportTable() {
+    const tableBody = document.querySelector("#reportTable tbody");
+    tableBody.innerHTML = ""; // Clear the table
+
+    chrome.storage.local.get(["savedReports"], (result) => {
+        const savedReports = result.savedReports || [];
+
+        // Sort the saved reports by playerName, then planetCoords, and then reportDate
+        savedReports.sort((a, b) => {
+            const playerComparison = a.playerName.localeCompare(b.playerName, undefined, { sensitivity: 'base' });
+            if (playerComparison !== 0) return playerComparison;
+
+            const coordsComparison = a.planetCoords.localeCompare(b.planetCoords, undefined, { sensitivity: 'base' });
+            if (coordsComparison !== 0) return coordsComparison;
+
+            const dateComparison = new Date(a.reportDate) - new Date(b.reportDate);
+            return dateComparison;
+        });
+
+        savedReports.forEach((report, index) => {
+            const row = document.createElement("tr");
+            row.dataset.reportId = report.id;
+
+            // Add row content
+            row.innerHTML = `
+                <td>${report.playerName}</td>
+                <td>${report.planetCoords}</td>
+                <td>${report.planetName}</td>
+                <td>${report.reportDate}</td>
+                <td>${report.resources}</td>
+                <td>${report.fleet}</td>
+            `;
+
+            // Add event listener for selection
+            row.addEventListener("click", () => {
+                // If the row is already selected, deselect it
+                if (row.classList.contains("selected")) {
+                    row.classList.remove("selected");
+                } else {
+                    // Deselect other rows and select this row
+                    tableBody.querySelectorAll("tr").forEach((r) => r.classList.remove("selected"));
+                    row.classList.add("selected");
+                }
+            });
+
+            tableBody.appendChild(row);
+        });
+    });
+}
+
+document.getElementById("saveReport").addEventListener("click", saveReport);
+document.getElementById("showReport").addEventListener("click", showReport);
+document.getElementById("deleteReport").addEventListener("click", deleteReport);
 
 // -------------------------
 
@@ -311,6 +434,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     restore_state_on_load();
     //setTimeout(restore_state_on_load, 1000);
+
+    populateReportTable();
 });
 
 // Stop polling when the popup closes

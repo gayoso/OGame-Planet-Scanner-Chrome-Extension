@@ -212,10 +212,10 @@ function scanSystemsAndGalaxies() {
     currentSystem++;
 }
 
-currentGalaxy = 1;
-currentSystem = 1;
-scanStartTime = new Date().toISOString().slice(0, 16).replace('T', ' ');
-playersData = {};
+// currentGalaxy = 1;
+// currentSystem = 1;
+// scanStartTime = new Date().toISOString().slice(0, 16).replace('T', ' ');
+// playersData = {};
 // Extract player and planet info
 function extractPlayerPlanetInfo() {
     const filteredGalaxyRows = document.querySelectorAll('.galaxyRow.ctContentRow:not(.empty_filter)');
@@ -241,9 +241,17 @@ function extractPlayerPlanetInfo() {
                     .find(node => node.nodeType === Node.TEXT_NODE).textContent.trim()
                 : '';
 
+            const is_inactive = row.querySelector('.galaxyCell.cellPlayerName').querySelector('.status_abbr_inactive') != null;
+            const is_vacations = row.querySelector('.galaxyCell.cellPlayerName').querySelector('.status_abbr_vacation') != null;
+
+            // TODO: tal vez poner que guarde si el planeta titne luna?
+            const has_moon = row.querySelector('.micromoon') != null;
+
             if (!playersData[player_name]) {
                 playersData[player_name] = {
                     alliance: alliance_name,
+                    inactive: is_inactive,
+                    vacations: is_vacations,
                     planets: []
                 };
             }
@@ -251,6 +259,7 @@ function extractPlayerPlanetInfo() {
             playersData[player_name].planets.push({
                 name: planet_name,
                 coords: planet_coords,
+                //moon: has_moon,
                 datetime: scanStartTime
             });
 
@@ -258,7 +267,7 @@ function extractPlayerPlanetInfo() {
         }
     });
 }
-extractPlayerPlanetInfo();
+// extractPlayerPlanetInfo();
 
 function checkScanStateOnLoad() {
     if (!Object.keys(playersData).length) {
@@ -269,6 +278,164 @@ function checkScanStateOnLoad() {
 function clearPlayersData() {
     playersData = {};
 }
+
+/* ------- ESPIONAGE REPROTS ------------------------------- */
+
+function _get_report_from_doc() {
+    const report_header = document.querySelector('.ui-widget-header');
+    if (!report_header)
+        return null;
+    const report = report_header.parentElement;
+    const clonedDialog = report.cloneNode(true);
+    clonedDialog.removeAttribute('style');
+
+    // Extract player name from the specific div element
+    const playerNameElement = report.querySelector('.playerName');
+    let playerName = playerNameElement ? playerNameElement.textContent.trim() : "Unknown Player";
+    if (playerName.startsWith("Jugadores:")) {
+        playerName = playerName.replace("Jugadores:", "").trim();
+    }
+
+    // Extract planet coordinates from the report title
+    const planetTitleElement = report.querySelector('.msg_title a span');
+    let planetName = "Unknown Planet";
+    let planetCoords = "Unknown Coords";
+
+    if (planetTitleElement) {
+        const fullTitle = planetTitleElement.textContent.trim();
+        const match = fullTitle.match(/^(.*?)\s+\[([^\]]+)\]$/); // Match planet name and coords
+        if (match) {
+            planetName = match[1].trim(); // Extract planet name
+            planetCoords = match[2].trim(); // Extract planet coords without brackets
+        }
+    }
+
+    // Extract report date from the specific span element
+    const dateElement = report.querySelector('.msg_date.fright');
+    const reportDate = dateElement ? dateElement.textContent.trim() : "Unknown Date";
+
+    // Extract resources amount
+    const resourcesElement = report.querySelector('.resourcesTotal span');
+    const resources = resourcesElement ? resourcesElement.textContent.trim() : "0";
+
+    // Extract fleet amount
+    const fleetElement = report.querySelector('.fleetInfo .shipsTotal span');
+    const fleet = fleetElement ? fleetElement.textContent.trim() : "0";
+
+    const reportId = `${playerName}-${planetCoords}-${Date.now()}`; // Unique ID for the report
+
+    return {
+        id: reportId,
+        playerName,
+        planetCoords,
+        planetName,
+        reportDate,
+        resources,
+        fleet,
+        reportHTML: clonedDialog.outerHTML,
+    };
+}
+
+function saveReport() {
+    const report = _get_report_from_doc();
+
+    if (report) {
+        chrome.storage.local.get(["savedReports"], (result) => {
+            const savedReports = result.savedReports || [];
+            savedReports.push(report);
+
+            chrome.storage.local.set({savedReports}, () => {
+                console.log("Report saved to local storage:", report);
+            });
+        });
+    }
+    else {
+        console.log("Report not found");
+    }
+}
+
+function showReport(reportId) {
+    chrome.storage.local.get(["savedReports"], (result) => {
+        const savedReports = result.savedReports || [];
+        const report = savedReports.find((r) => r.id === reportId);
+
+        if (report) {
+            // Create a container and set its content
+            const container = document.createElement("div");
+            container.innerHTML = report.reportHTML;
+            document.body.appendChild(container);
+
+            // Add styles to make the container draggable
+            container.style.position = "absolute";
+            container.style.top = "100px";
+            container.style.left = "100px";
+            container.style.zIndex = "5000";
+            container.querySelector(".ui-dialog").style.width = "auto";
+
+            container.style.top = `${window.scrollY + 50}px`;
+            container.style.left = `${(window.innerWidth - container.firstElementChild.getBoundingClientRect().width) / 2}px`;
+
+            let isDragging = false;
+            let offsetX = 0;
+            let offsetY = 0;
+
+            // Drag start
+            const handle = container.querySelector(".ui-dialog-titlebar");
+            handle.style.cursor = "grab";
+
+            handle.addEventListener("mousedown", (e) => {
+                isDragging = true;
+                const rect = container.firstElementChild.getBoundingClientRect();
+                offsetX = e.clientX - rect.left;
+                offsetY = e.clientY - rect.top; // Use clientY for consistency
+                handle.style.cursor = "grabbing";
+
+                // Prevent text selection while dragging
+                document.body.style.userSelect = "none";
+
+                console.log("Offset:", offsetY, "Scroll:", window.scrollY);
+            });
+
+            document.addEventListener("mousemove", (e) => {
+                if (isDragging) {
+                    let newLeft = e.clientX - offsetX;
+                    let newTop = e.clientY - offsetY + window.scrollY; // Add scroll offset to calculate correct position
+
+                    // Only constrain the top boundary
+                    if (newTop < 0) newTop = 0;
+
+                    container.style.left = `${newLeft}px`;
+                    container.style.top = `${newTop}px`;
+
+                    console.log("New Top:", newTop, "Scroll:", window.scrollY);
+                }
+            });
+
+            // Drag end
+            document.addEventListener("mouseup", () => {
+                isDragging = false;
+                handle.style.cursor = "grab";
+
+                // Restore text selection
+                document.body.style.userSelect = "auto";
+            });
+
+            // Add close functionality to the close button
+            const closeButton = container.querySelector(".ui-dialog-titlebar-close");
+            if (closeButton) {
+                closeButton.addEventListener("click", () => {
+                    container.remove();
+                });
+            }
+
+            console.log("Report displayed:", report);
+        } else {
+            console.error("Report not found:", reportId);
+        }
+    });
+}
+
+/* --------------------------------------------------------- */
 
 
 // Listen for messages from the popup
@@ -299,5 +466,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         checkScanStateOnLoad();
         sendResponse({ status: "Scan state polled." });
 
+    }  else if (message.action === "saveReport") {
+
+        saveReport();
+        sendResponse({ status: "Report saved." });
+
+    }  else if (message.action === "showReport") {
+
+        showReport(message.reportId);
+        sendResponse({ status: "Report shown." });
     }
 });

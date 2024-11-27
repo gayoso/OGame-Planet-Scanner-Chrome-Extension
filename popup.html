@@ -120,7 +120,7 @@
         /* Fixed height for table body with scrollbar */
         tbody {
             display: block; /* Enable block layout for scrolling */
-            height: 400px; /* Adjust height as needed */
+            height: 360px; /* Adjust height as needed */
             overflow-y: auto; /* Vertical scrollbar */
             overflow-x: hidden; /* Disable horizontal scrollbar */
         }
@@ -130,6 +130,31 @@
             display: table;
             width: 483px; /* Ensure rows match table width */
             table-layout: fixed; /* Equal column widths */
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            border-right: solid;
+            border-width: thin;
+            padding-right: 5px;
+        }
+        .dates-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            border-bottom: solid;
+            border-width: thin;
+            padding-bottom: 5px;
+        }
+
+        #reportTable tbody tr {
+            cursor: pointer; /* Pointer cursor for rows */
+        }
+
+        #reportTable tbody tr.selected {
+            border: 2px solid white; /* White border for selected row */
+            margin: -1px; /* Prevent layout shift due to border addition */
         }
 
     </style>
@@ -193,20 +218,66 @@
         <button id="importButton" class="button">Import</button>
     </div>
 
+    <h3 class="title smaller">Espionage Reports</h3>
+
+    <div class="row-container">
+        <button id="saveReport" class="button">Save</button>
+        <button id="showReport" class="button">Show</button>
+        <button id="deleteReport" class="button">Delete</button>
+    </div>
+
+    <table id="reportTable">
+        <thead>
+            <tr>
+                <th>Player</th>
+                <th>Coords</th>
+                <th>Planet</th>
+                <th>Date</th>
+                <th>Res</th>
+                <th>Fleet</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
     <h3 class="title smaller">Scan Differences</h3>
 
-    <div id="scanDates" style="display: flex; gap: 10px; margin-bottom: 10px;">
+    <div id="scanDates" class="dates-container">
         <div><strong>Last Scan:</strong> <span id="lastScanDate">N/A</span></div>
         <div><strong>Current Scan:</strong> <span id="currentScanDate">N/A</span></div>
     </div>
 
-    <div id="filterCheckboxes" style="display: flex; margin-bottom: 10px; gap: 10px;">
-        <label><input type="checkbox" value="!! NEW PLANET !!"> New</label>
-        <label><input type="checkbox" value="destroyed planet"> Destroyed</label>
-        <label><input type="checkbox" value="alliance change"> Alliance</label>
-        <label><input type="checkbox" value="player name change"> Player name</label>
-        <label><input type="checkbox" value="planet name change"> Planet name</label>
+    <div id="filterCheckboxes" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+         <div class="checkbox-group">
+            <label>New planet</label>
+            <input type="checkbox" value="!! NEW PLANET !!">
+        </div>
+         <div class="checkbox-group">
+            <label>Destroyed planet</label>
+            <input type="checkbox" value="destroyed planet">
+        </div>
+         <div class="checkbox-group">
+            <label>Alliance changed</label>
+            <input type="checkbox" value="alliance change">
+        </div>
+         <div class="checkbox-group">
+            <label>Player name changed</label>
+            <input type="checkbox" value="player name change">
+        </div>
+         <div class="checkbox-group">
+            <label>Planet name changed</label>
+            <input type="checkbox" value="planet name change">
+        </div>
+         <div class="checkbox-group">
+            <label>Inactive</label>
+            <input type="checkbox" value="inactive">
+        </div>
+        <div class="checkbox-group">
+            <label>Vacations</label>
+            <input type="checkbox" value="vacations">
+        </div>
     </div>
+
     <input type="text" id="searchInput" placeholder="Search..." style="width: 90%; margin-bottom: 10px;"/>
     <table id="scanDifferencesTable">
         <thead>
