@@ -1,6 +1,6 @@
 # OGame-Player-Scanner-Chrome-Extension
 
-![alt text](https://github.com/gayoso/OGame-Player-Scanner-Chrome-Extension/blob/main/preview.png?raw=true)
+![alt text](https://github.com/gayoso/OGame-Planet-Scanner-Chrome-Extension/blob/main/preview.png?raw=true)
 
 A Scanner tool to help you and your alliance conquer your OGame server.
 
